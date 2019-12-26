@@ -8,9 +8,9 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/Build/Debug/app.exe",
+            "program": "./__Build/Debug/PPPROJ.exe",
             "args": [],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false
