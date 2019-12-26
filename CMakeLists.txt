@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 
+SET(CMAKE_CXX_COMPILER "C:/NewMingW/bin/g++.exe")
+
+SET(CMAKE_C_COMPILER "C:/NewMingW/bin/gcc.exe")
+
 SET(PROJ_NAME "PPPROJ")
 PROJECT(${PROJ_NAME})
 

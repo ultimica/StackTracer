@@ -17,7 +17,7 @@
 
 
 #define DUMP_PREFIX            "/fs-add/fatek-home/root/"
-#define CAT_DUPFILE(signalnum)  DUMP_PREFIX##signalnum"_dumptrace"
+#define CAT_DUPFILE(signalnum)  DUMP_PREFIX signalnum "_dumptrace"
 #define INITSIGMAP(signalnum) g_mapstr[signalnum]=std::string(CAT_DUPFILE(#signalnum));
 
 using namespace boost_api;
@@ -99,7 +99,7 @@ void boost_api::DecodeDumpFile(const std::string &dumpfile)
     boost::filesystem::path dcoodedpath=dumpfilepath.replace_extension(".decode_dump");
     isDumpExist=true;
     std::ifstream ifs(dumpfile.c_str());
-    std::ofstream decodefile(dcoodedpath.c_str());
+    std::ofstream decodefile(dcoodedpath.string());
     std::cout<<"==================================Parsing Dump file:"<<dumpfile<<std::endl;
 
     boost::stacktrace::stacktrace st = boost::stacktrace::stacktrace::from_dump(ifs);
