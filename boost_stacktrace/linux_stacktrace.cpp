@@ -7,12 +7,14 @@
 
 
 #include <signal.h>
-
-
+#include <boost/foreach.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/stacktrace.hpp>
 #include <boost/date_time.hpp>
 #include <map>
 #include <string>
+#include <sstream>
+
 
 #define DUMP_PREFIX            "/fs-add/fatek-home/root/"
 #define CAT_DUPFILE(signalnum)  DUMP_PREFIX##signalnum"_dumptrace"
@@ -26,16 +28,7 @@ static std::map<int,std::string>  g_mapstr;
 void my_sig_handle(int signum)
 {
     ::signal(signum,SIG_DFL);
-    	
-    boost::posix_time::ptime timeLocal = boost::posix_time::second_clock::universal_time();
-    std::time_t curtimet=boost::posix_time::to_time_t(timeLocal);
-
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&curtimet), "_%Y_%m_%d_%H_%M_%S");
-
-    std::string timestampstr=ss.str();
-    std::string dumpfile=g_mapstr[signum]+timestampstr+".dump";
-    boost::stacktrace::safe_dump_to(dumpfile.c_str());
+    boost_api::DumpCallStack(g_mapstr[signum]);
     ::raise(SIGABRT);
 }
 
@@ -74,82 +67,90 @@ void boost_api::RegisterSignal()
 
 }
 
-/*
+std::vector<std::string> boost_api::LocateExtension(const std::string &pathstr, const std::string &extension)
+{
+    std::string comparedextension="."+extension;
+    
+    std::vector<std::string> ret;
+    boost::filesystem::path curpath(pathstr);
+    boost::filesystem::directory_iterator pos(curpath);
+    boost::filesystem::directory_iterator endpos=boost::filesystem::directory_iterator();
+    for(;pos!=endpos;pos++)
+    {
+        boost::filesystem::path filepath=pos->path();
+        if(filepath.extension()==comparedextension)
+        {
+            std::stringstream ss;
+            ss<<filepath;
+            ret.emplace_back(ss.str());
+            //std::cout<<"CURFILE:"<<filepath<<std::endl;
+        }
 
-namespace bs = boost::stacktrace;
-bool RecoverDumpFile(std::string& file)
+    }
+    return ret;
+}
+
+void boost_api::DecodeDumpFile(const std::string &dumpfile)
 {
     bool isDumpExist=false;
-    std::string recovertarget=file+std::string(".dump");
-  
-    if (boost::filesystem::exists(recovertarget)) {
-    // there is a backtrace
+    if (boost::filesystem::exists(dumpfile)) 
+    {
+    boost::filesystem::path dumpfilepath(dumpfile);
+    boost::filesystem::path dcoodedpath=dumpfilepath.replace_extension(".decode_dump");
     isDumpExist=true;
-    std::ifstream ifs(recovertarget.c_str());
-    std::cout<<"==================================Parsing Dump file:"<<recovertarget<<std::endl;
+    std::ifstream ifs(dumpfile.c_str());
+    std::ofstream decodefile(dcoodedpath.c_str());
+    std::cout<<"==================================Parsing Dump file:"<<dumpfile<<std::endl;
 
     boost::stacktrace::stacktrace st = boost::stacktrace::stacktrace::from_dump(ifs);
     std::cout << "Previous run crashed:\n" << st << std::endl;
 
 
-    // boost::stacktrace::iterator stpos=st.begin();
-    // boost::stacktrace::iterator stendpos=st.end();
-    // int index=0;
-    // for (;stpos!=stendpos;stpos++) {
-
-    //     std::cout << index<<" "<<stpos->address() << std::endl;
-    // }
-
-    BOOST_FOREACH (bs::frame frame , st) {
+    BOOST_FOREACH (boost::stacktrace::frame frame , st) {
         std::cout << frame.address() << std::endl;
+        decodefile<<frame.address()<<std::endl;
     }
     // cleaning up
     ifs.close();
+    decodefile.close();
     //  boost::filesystem::remove(recovertarget);
 
     std::cout << "=================================================================="<< std::endl;
     }
-    return isDumpExist;
 
 }
-//#define DEBUG_TIME_4_LAUNCH
-ConfigObjPrj *g_config_prj;
-extern SimulationMain *g_simu_main;
 
 
-
-
-
-int main(int argc, char *argv[])
+void boost_api::DecodeDumpFileList(const std::vector<std::string> &dumplist)
 {
-    INITSIGMAP(SIGSEGV);
-    INITSIGMAP(SIGABRT);
-    INITSIGMAP(SIGFPE);
-    INITSIGMAP(SIGINT);
-    INITSIGMAP(SIGBUS);
-    INITSIGMAP(SIGSYS);
-    INITSIGMAP(SIGXFSZ);
-    INITSIGMAP(SIGTERM);
-    INITSIGMAP(SIGQUIT);
-
-    std::map<int, std::string>::iterator pos=g_mapstr.begin();
-    std::map<int, std::string>::iterator endpos=g_mapstr.end();
-    for(;pos!=endpos;pos++)
-        ::signal(pos->first,&my_sig_handle);
-
-    pos=g_mapstr.begin();
-    bool isExit=false;
-    for(;pos!=endpos;pos++)
-    {
-        isExit|=RecoverDumpFile(pos->second);
+    BOOST_FOREACH (const std::string &dumpfile , dumplist) {
+        boost_api::DecodeDumpFile(dumpfile);
     }
-    
-    if(isExit)
-    {
-        std::cout<<"~~~~~~~~~~~~~~~Dump File Find~~~~~~~~~~~~"<<std::endl;
-        return 0;
-    }
+}
 
+void boost_api::DumpCallStack(const std::string &dumpstr)
+{
+    boost::posix_time::ptime timeLocal = boost::posix_time::second_clock::universal_time();
+    std::time_t curtimet=boost::posix_time::to_time_t(timeLocal);
 
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&curtimet), "_%Y_%m_%d_%H_%M_%S");
 
-*/
+    std::string timestampstr=ss.str();
+    std::string dumpfile=dumpstr+timestampstr+".dump";
+    std::cout<<"DUMP:"<<dumpfile<<std::endl;
+    boost::stacktrace::safe_dump_to(dumpfile.c_str());
+}
+
+void boost_api::PrintCallStack()
+{
+    boost::posix_time::ptime timeLocal = boost::posix_time::second_clock::universal_time();
+    std::time_t curtimet=boost::posix_time::to_time_t(timeLocal);
+
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&curtimet), "_%Y_%m_%d_%H_%M_%S");
+
+    boost::stacktrace::stacktrace curST;
+    std::cout<<"CURRENT Trace:"<<curST;
+}
+   
